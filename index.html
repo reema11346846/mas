@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>المتابع الشخصي | الوزن والتقويم مع السحابة</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Cairo -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          },
+          colors: {
+            trans: {
+              cyan: '#00d2ff',
+              cyanGlow: '#38bdf8',
+              pink: '#ff2d78',
+              hotPink: '#ff4d94',
+              softRose: '#fce7f3',
+              deepBg: '#090414',
+              cardBg: '#150a29',
+              cardBorder: '#3b1763',
+              cardHover: '#231142'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Cairo', sans-serif;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      background-color: #090414;
+    }
+
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090414;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #3b1763;
+      border-radius: 4px;
+    }
+
+    .tab-view {
+      display: none;
+    }
+    .tab-view.active {
+      display: block;
+    }
+
+    .calendar-cell {
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.75rem;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+    .calendar-cell:active {
+      transform: scale(0.92);
+    }
+    
+    .trans-stripe {
+      background: linear-gradient(90deg, #00d2ff 0%, #ff2d78 28%, #fbcfe8 50%, #ff2d78 72%, #00d2ff 100%);
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.8; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.08); }
+    }
+    .live-pulse {
+      animation: pulseGlow 2s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="text-[#fce7f3] min-h-screen flex justify-center bg-[#090414]">
+
+  <div id="app" class="w-full max-w-md min-h-screen flex flex-col justify-between bg-[#0e0620] shadow-[0_0_35px_rgba(255,45,120,0.15)] border-x border-[#3b1763] relative">
+    
+    <!-- Trans Pride saturated accent bar -->
+    <div class="h-1.5 w-full trans-stripe sticky top-0 z-40 shadow-[0_0_10px_#ff2d78]"></div>
+
+    <!-- Top Header -->
+    <header class="sticky top-1.5 z-30 bg-[#0e0620]/95 backdrop-blur-md px-5 py-3 border-b border-[#3b1763]">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-base font-extrabold text-[#fce7f3] flex items-center gap-2">
+            <span class="bg-gradient-to-r from-[#00d2ff] via-[#ff2d78] to-[#fbcfe8] bg-clip-text text-transparent font-black">المتابع الشخصي</span>
+            <span class="w-2 h-2 rounded-full bg-[#ff2d78] shadow-[0_0_10px_#ff2d78]"></span>
+          </h1>
+          <p class="text-[11px] text-[#ff80ab] font-semibold" id="header-date-label">تتبع بسيط وسحابي مباشر</p>
+        </div>
+
+        <!-- Quick Weight Badge & Cloud Status Indicator Button -->
+        <div class="flex items-center gap-2">
+          <button onclick="openCloudModal()" id="cloud-status-pill" class="flex items-center gap-1.5 bg-[#170b2c] border border-[#481c78] px-2.5 py-1.5 rounded-xl text-xs font-bold shadow-[0_0_12px_rgba(0,210,255,0.1)] hover:border-[#00d2ff] transition">
+            <span id="cloud-indicator-dot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <i data-lucide="cloud" class="w-3.5 h-3.5 text-[#d8b4fe]"></i>
+          </button>
+
+          <div class="flex items-center gap-1 bg-[#170b2c] border border-[#481c78] px-3 py-1.5 rounded-xl text-xs font-bold shadow-[0_0_12px_rgba(0,210,255,0.15)]">
+            <span class="text-[#d8b4fe]">الوزن:</span>
+            <span id="quick-current-weight" class="text-[#00d2ff] font-extrabold">97.0</span>
+            <span class="text-[10px] text-[#ff669a]">كجم</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Sync status notification line -->
+      <div id="sync-status-strip" class="mt-2 text-[10.5px] px-2.5 py-1 rounded-lg bg-[#140826] border border-[#3b1763] text-[#d8b4fe] flex items-center justify-between">
+        <span class="flex items-center gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap">
+          <span id="status-icon" class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+          <span id="status-text">جاري فحص الاتصال بفايربيز...</span>
+        </span>
+        <button onclick="openCloudModal()" class="text-[#00d2ff] underline font-bold text-[10px] shrink-0">التفاصيل</button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 p-4 pb-24 overflow-y-auto space-y-4">
+      
+      <!-- ============================================== -->
+      <!-- TAB 1: CALENDAR TRACKER                        -->
+      <!-- ============================================== -->
+      <section id="view-calendar" class="tab-view active space-y-4">
+        
+        <!-- Month Navigation Card -->
+        <div class="bg-[#170b2c] rounded-2xl p-4 border border-[#3b1763] shadow-md flex items-center justify-between">
+          <button onclick="changeMonth(-1)" class="p-2 rounded-xl bg-[#231142] hover:bg-[#32175e] text-[#00d2ff] transition active:scale-95 border border-[#4d1f85]">
+            <i data-lucide="chevron-right" class="w-5 h-5"></i>
+          </button>
+          
+          <div class="text-center">
+            <h2 id="calendar-month-name" class="text-base font-extrabold text-[#fce7f3]">الشهر الحالي</h2>
+            <p class="text-[11px] text-[#ff80ab] font-bold">اضغطي على أي يوم لتحديد العدد</p>
+          </div>
+
+          <button onclick="changeMonth(1)" class="p-2 rounded-xl bg-[#231142] hover:bg-[#32175e] text-[#00d2ff] transition active:scale-95 border border-[#4d1f85]">
+            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <!-- Color Legend -->
+        <div class="bg-[#170b2c] rounded-2xl p-3 border border-[#3b1763]">
+          <div class="text-[11px] font-black text-[#ff80ab] mb-2 flex items-center justify-between">
+            <span>دلالة الألوان:</span>
+            <span class="text-[10px] text-[#00d2ff] flex items-center gap-1 font-bold">
+              <i data-lucide="cloud-check" class="w-3 h-3"></i> حفظ سحابي فوري
+            </span>
+          </div>
+          <div class="grid grid-cols-6 gap-1 text-center text-[10px] font-semibold">
+            <div class="flex flex-col items-center gap-1">
+              <div class="w-6 h-6 rounded-lg bg-[#00d2ff]/20 border border-[#00d2ff]/60 text-[#00d2ff] flex items-center justify-center font-black">0</div>
+              <span class="text-[#e9d5ff]">مفيش</span>
+            </div>
+            <div class="flex flex-col items-center gap-1">
+              <div class="w-6 h-6 rounded-lg bg-emerald-500/25 border border-emerald-400/60 text-emerald-300 flex items-center justify-center font-bold">1</div>
+              <span class="text-[#e9d5ff]">مرة</span>
+            </div>
+            <div class="flex flex-col items-center gap-1">
+              <div class="w-6 h-6 rounded-lg bg-amber-500/25 border border-amber-400/60 text-amber-300 flex items-center justify-center font-bold">2</div>
+              <span class="text-[#e9d5ff]">مرتين</span>
+            </div>
+            <div class="flex flex-col items-center gap-1">
+              <div class="w-6 h-6 rounded-lg bg-[#ff2d78]/25 border border-[#ff2d78]/70 text-[#ff4d94] flex items-center justify-center font-black">3</div>
+              <span class="text-[#e9d5ff]">3 مرات</span>
+            </div>
+            <div class="flex flex-col items-center gap-1">
+              <div class="w-6 h-6 rounded-lg bg-purple-600/35 border border-purple-400/60 text-purple-200 flex items-center justify-center font-black">4+</div>
+              <span class="text-[#e9d5ff]">4 وأكثر</span>
+            </div>
+            <div class="flex flex-col items-center gap-1">
+              <div class="w-6 h-6 rounded-lg bg-[#231142] border border-[#6b21a8] border-dashed text-[#d8b4fe] flex items-center justify-center font-bold">؟</div>
+              <span class="text-[#e9d5ff]">مش فاكر</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calendar Grid -->
+        <div class="bg-[#170b2c] rounded-2xl p-3.5 border border-[#3b1763]">
+          <!-- Weekdays Header -->
+          <div class="grid grid-cols-7 gap-1 text-center text-xs font-black text-[#ff80ab] mb-2">
+            <div>سبت</div>
+            <div>أحد</div>
+            <div>اثنين</div>
+            <div>ثلاثاء</div>
+            <div>أربعاء</div>
+            <div>خميس</div>
+            <div>جمعة</div>
+          </div>
+
+          <!-- Day Cells Container -->
+          <div id="calendar-days-grid" class="grid grid-cols-7 gap-1.5">
+            <!-- Dynamically injected by JS -->
+          </div>
+        </div>
+
+        <!-- Monthly Breakdown Summary -->
+        <div class="bg-[#170b2c] rounded-2xl p-4 border border-[#3b1763]">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-black text-[#fce7f3]">إحصائيات هذا الشهر</span>
+            <span id="month-total-events" class="text-xs font-black text-[#00d2ff]">إجمالي المرات: 0</span>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-2 text-center text-xs">
+            <div class="bg-[#231142] p-2.5 rounded-xl border border-[#4d1f85]">
+              <div class="text-[11px] text-[#00d2ff] mb-0.5 font-black">أيام مفيش (0)</div>
+              <div id="stat-clean-days" class="text-xl font-black text-[#fce7f3]">0</div>
+            </div>
+            <div class="bg-[#231142] p-2.5 rounded-xl border border-[#4d1f85]">
+              <div class="text-[11px] text-[#ff80ab] mb-0.5 font-black">غير محدد (مش فاكر)</div>
+              <div id="stat-unknown-days" class="text-xl font-black text-[#e9d5ff]">0</div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ============================================== -->
+      <!-- TAB 2: WEIGHT PROGRESS                         -->
+      <!-- ============================================== -->
+      <section id="view-weight" class="tab-view space-y-4">
+        
+        <!-- Main Weight Progress Card -->
+        <div class="bg-[#170b2c] rounded-2xl p-4 border border-[#3b1763] space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-black text-[#fce7f3]">التقدم نحو 80 كجم</span>
+            <span id="total-loss-badge" class="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#ff2d78]/25 border border-[#ff2d78]/50 text-[#ff4d94]">
+              خسيتي 8.0 كجم
+            </span>
+          </div>
+
+          <!-- Numbers comparison -->
+          <div class="grid grid-cols-3 gap-2 text-center bg-[#231142] p-3 rounded-xl border border-[#4d1f85]">
+            <div>
+              <span class="text-[10px] text-[#d8b4fe] font-semibold block">البداية (شهر 9)</span>
+              <span class="text-sm font-extrabold text-[#fce7f3]">105.0</span>
+              <span class="text-[10px] text-[#a855f7] block">كجم</span>
+            </div>
+            <div class="border-x border-[#4d1f85]">
+              <span class="text-[10px] text-[#00d2ff] font-bold block">الوزن الحالي</span>
+              <span id="display-current-weight" class="text-lg font-black text-[#00d2ff]">97.0</span>
+              <span class="text-[10px] text-[#d8b4fe] block">كجم</span>
+            </div>
+            <div>
+              <span class="text-[10px] text-[#ff80ab] font-bold block">الهدف النهائي</span>
+              <span class="text-sm font-extrabold text-[#ff4d94]">80.0</span>
+              <span class="text-[10px] text-[#a855f7] block">كجم</span>
+            </div>
+          </div>
+
+          <!-- Overall Progress Bar -->
+          <div class="space-y-1.5 pt-1">
+            <div class="flex justify-between text-xs font-bold">
+              <span class="text-[#d8b4fe]">إنجاز الخطة الإجمالية:</span>
+              <span id="overall-progress-text" class="text-[#00d2ff] font-black">32%</span>
+            </div>
+            <div class="w-full h-3 bg-[#090414] rounded-full overflow-hidden p-0.5 border border-[#4d1f85]">
+              <div id="overall-progress-bar" class="h-full bg-gradient-to-r from-[#00d2ff] via-[#fbcfe8] to-[#ff2d78] rounded-full transition-all duration-700 shadow-[0_0_8px_#ff2d78]" style="width: 32%;"></div>
+            </div>
+            <div class="flex justify-between text-[11px] text-[#d8b4fe] pt-0.5">
+              <span>تم إنجاز: 8 كجم</span>
+              <span id="remaining-kg-text" class="text-[#ff80ab] font-bold">باقي: 17.0 كجم للوصول لـ 80</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5 KG Step-by-Step Milestones -->
+        <div class="bg-[#170b2c] rounded-2xl p-4 border border-[#3b1763] space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-extrabold text-[#fce7f3] flex items-center gap-1.5">
+              <i data-lucide="target" class="w-4 h-4 text-[#ff2d78]"></i>
+              مراحل الهدف (مقسمة كل 5 كجم)
+            </h3>
+            <span class="text-[10px] text-[#d8b4fe] font-medium">خطوة بخطوة</span>
+          </div>
+
+          <div id="milestones-ladder" class="space-y-2.5">
+            <!-- Dynamically populated by JS -->
+          </div>
+        </div>
+
+        <!-- Tuesday Weigh-in Scheduler & Logger -->
+        <div class="bg-[#170b2c] rounded-2xl p-4 border border-[#3b1763] space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="calendar" class="w-4 h-4 text-[#00d2ff]"></i>
+              <span class="text-xs font-black text-[#fce7f3]">ميعاد الميزان الأسبوعي (كل ثلاثاء)</span>
+            </div>
+            <span id="next-tuesday-badge" class="text-[11px] px-2 py-0.5 rounded-lg bg-[#00d2ff]/20 text-[#00d2ff] border border-[#00d2ff]/40 font-black">
+              ميزان كل ثلاثاء
+            </span>
+          </div>
+
+          <!-- Add Tuesday Weigh-in Input -->
+          <div class="bg-[#231142] p-3 rounded-xl border border-[#4d1f85] flex gap-2 items-center">
+            <div class="flex-1">
+              <label class="text-[10px] text-[#ff80ab] font-black block mb-1">تسجيل ميزان ثلاثاء جديد (كجم):</label>
+              <input type="number" id="input-tuesday-weight" step="0.1" placeholder="مثال: 96.5" class="w-full bg-[#090414] border border-[#4d1f85] rounded-lg px-3 py-2 text-[#fce7f3] text-xs font-black focus:outline-none focus:border-[#00d2ff] focus:ring-1 focus:ring-[#00d2ff]">
+            </div>
+            <button onclick="saveTuesdayWeight()" class="self-end px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#00d2ff] via-[#ff2d78] to-[#ff4d94] hover:opacity-95 text-[#090414] text-xs font-black transition active:scale-95 shadow-[0_0_12px_rgba(255,45,120,0.3)]">
+              حفظ وتزامن
+            </button>
+          </div>
+        </div>
+
+        <!-- Weekly History Table / Log -->
+        <div class="bg-[#170b2c] rounded-2xl p-4 border border-[#3b1763] space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-black text-[#fce7f3] flex items-center gap-1.5">
+              <i data-lucide="history" class="w-4 h-4 text-[#ff2d78]"></i>
+              سجل ميزان الثلاثاء (المحفوظ سحابياً)
+            </h3>
+            <span class="text-[10px] text-[#d8b4fe]">أسبوع بأسبوع</span>
+          </div>
+
+          <div id="weekly-logs-container" class="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- Bottom Mobile Nav Bar -->
+    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-40 bg-[#0e0620]/95 backdrop-blur-md border-t border-[#3b1763] px-6 py-2.5 flex items-center justify-around shadow-2xl">
+      
+      <!-- Tab 1 Button -->
+      <button onclick="switchTab('calendar')" id="nav-btn-calendar" class="flex flex-col items-center gap-1 text-[#00d2ff] transition font-black">
+        <i data-lucide="calendar-days" class="w-5 h-5"></i>
+        <span class="text-[11px]">التقويم بالألوان</span>
+      </button>
+
+      <!-- Tab 2 Button -->
+      <button onclick="switchTab('weight')" id="nav-btn-weight" class="flex flex-col items-center gap-1 text-[#d8b4fe] hover:text-[#fce7f3] transition font-bold">
+        <i data-lucide="scale" class="w-5 h-5"></i>
+        <span class="text-[11px]">رحلة الوزن والـ 5 كجم</span>
+      </button>
+
+    </nav>
+
+    <!-- Modal: Day Tap Selector -->
+    <div id="modal-day-picker" class="fixed inset-0 z-50 bg-[#090414]/90 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 hidden">
+      <div class="w-full max-w-xs bg-[#170b2c] border border-[#3b1763] rounded-3xl p-5 shadow-[0_0_25px_rgba(255,45,120,0.25)] space-y-4">
+        <div class="flex items-center justify-between border-b border-[#3b1763] pb-2.5">
+          <div>
+            <h4 id="picker-date-title" class="text-sm font-black text-[#fce7f3]">تحديد يوم</h4>
+            <span class="text-[11px] text-[#ff80ab] font-bold">اختاري عدد المرات لهذا اليوم:</span>
+          </div>
+          <button onclick="closePickerModal()" class="p-1 text-[#d8b4fe] hover:text-[#ff2d78] transition">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- 6 Direct Buttons -->
+        <div class="grid grid-cols-1 gap-2">
+          <button onclick="setDayCount(0)" class="w-full py-2.5 px-3 rounded-xl bg-[#00d2ff]/15 border border-[#00d2ff]/50 hover:bg-[#00d2ff]/25 text-[#00d2ff] text-xs font-black flex items-center justify-between transition">
+            <span>0 - مفيش</span>
+            <span class="w-5 h-5 rounded-md bg-[#00d2ff]/25 text-[#00d2ff] flex items-center justify-center font-bold">✓</span>
+          </button>
+
+          <button onclick="setDayCount(1)" class="w-full py-2.5 px-3 rounded-xl bg-emerald-950/40 border border-emerald-500/50 hover:bg-emerald-900/60 text-emerald-300 text-xs font-bold flex items-center justify-between transition">
+            <span>1 - مرة واحدة</span>
+            <span class="w-5 h-5 rounded-md bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold">1</span>
+          </button>
+
+          <button onclick="setDayCount(2)" class="w-full py-2.5 px-3 rounded-xl bg-amber-950/40 border border-amber-500/50 hover:bg-amber-900/60 text-amber-300 text-xs font-bold flex items-center justify-between transition">
+            <span>2 - مرتين</span>
+            <span class="w-5 h-5 rounded-md bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">2</span>
+          </button>
+
+          <button onclick="setDayCount(3)" class="w-full py-2.5 px-3 rounded-xl bg-[#ff2d78]/20 border border-[#ff2d78]/60 hover:bg-[#ff2d78]/30 text-[#ff4d94] text-xs font-black flex items-center justify-between transition">
+            <span>3 - تلات مرات</span>
+            <span class="w-5 h-5 rounded-md bg-[#ff2d78]/30 text-[#ff4d94] flex items-center justify-center font-black">3</span>
+          </button>
+
+          <button onclick="setDayCount(4)" class="w-full py-2.5 px-3 rounded-xl bg-purple-950/50 border border-purple-500/60 hover:bg-purple-900/70 text-purple-200 text-xs font-black flex items-center justify-between transition">
+            <span>4 - أربع مرات أو أكثر</span>
+            <span class="w-5 h-5 rounded-md bg-purple-500/30 text-purple-200 flex items-center justify-center font-bold">4+</span>
+          </button>
+
+          <button onclick="setDayCount('unknown')" class="w-full py-2.5 px-3 rounded-xl bg-[#231142] border border-[#6b21a8] hover:bg-[#32175e] text-[#e9d5ff] text-xs font-bold flex items-center justify-between transition">
+            <span>؟ - غير محدد (مش فاكر)</span>
+            <span class="w-5 h-5 rounded-md bg-[#150a29] text-[#e9d5ff] flex items-center justify-center font-bold border border-[#6b21a8]">؟</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Cloud Firebase Details & Custom Config -->
+    <div id="modal-cloud" class="fixed inset-0 z-50 bg-[#090414]/90 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+      <div class="w-full max-w-sm bg-[#170b2c] border border-[#3b1763] rounded-3xl p-5 shadow-[0_0_30px_rgba(0,210,255,0.25)] space-y-4">
+        <div class="flex items-center justify-between border-b border-[#3b1763] pb-3">
+          <div class="flex items-center gap-2">
+            <i data-lucide="database" class="w-5 h-5 text-[#00d2ff]"></i>
+            <div>
+              <h4 class="text-sm font-black text-[#fce7f3]">حالة الاتصال بفايربيز</h4>
+              <p class="text-[10px] text-[#d8b4fe]">مزامنة فورية مشفرة للسحابة</p>
+            </div>
+          </div>
+          <button onclick="closeCloudModal()" class="p-1 text-[#d8b4fe] hover:text-[#ff2d78] transition">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <div class="space-y-2 text-xs">
+          <!-- Connection State -->
+          <div class="bg-[#231142] p-3 rounded-xl border border-[#4d1f85] flex items-center justify-between">
+            <span class="text-[#d8b4fe] font-bold">حالة المزامنة:</span>
+            <span id="modal-sync-badge" class="px-2 py-0.5 rounded-lg bg-amber-400/20 text-amber-300 font-extrabold text-[11px]">جاري الاتصال...</span>
+          </div>
+
+          <!-- User ID for Multi-User & Discoverability -->
+          <div class="bg-[#231142] p-3 rounded-xl border border-[#4d1f85] space-y-1">
+            <span class="text-[10px] text-[#ff80ab] font-black block">مُعرّف المستخدم في فايربيز (User ID):</span>
+            <div class="flex items-center gap-2">
+              <span id="modal-user-id" class="text-[11px] font-mono font-bold text-[#00d2ff] break-all select-all">غير مسجل بعد</span>
+              <button onclick="copyUserId()" class="shrink-0 p-1.5 rounded-lg bg-[#150a29] border border-[#4d1f85] hover:border-[#00d2ff] text-[#d8b4fe] hover:text-[#00d2ff] transition" title="نسخ المعرف">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Path Info Display -->
+          <div class="bg-[#231142] p-2.5 rounded-xl border border-[#4d1f85] text-[10px] text-[#d8b4fe]">
+            <span class="block font-bold text-[#fce7f3] mb-0.5">مسار التخزين السحابي الآمن:</span>
+            <code id="modal-storage-path" class="text-[#00d2ff] text-[9.5px] break-all font-mono">artifacts/{appId}/users/{userId}/tracker_data/main</code>
+          </div>
+
+          <!-- Custom Config Toggle for Manual Setup -->
+          <div class="pt-1">
+            <button onclick="toggleConfigArea()" class="text-[11px] text-[#ff80ab] hover:text-[#fce7f3] font-bold underline flex items-center gap-1">
+              <i data-lucide="sliders" class="w-3 h-3"></i>
+              إعداد مفاتيح Firebase خاصة بك يدوياً
+            </button>
+            <div id="custom-config-box" class="hidden mt-2 space-y-2">
+              <textarea id="custom-firebase-json" rows="4" placeholder='الصقي الـ firebaseConfig هنا بتنسيق JSON:&#10;{&#10;  "apiKey": "...",&#10;  "projectId": "..."&#10;}' class="w-full bg-[#090414] border border-[#4d1f85] rounded-xl p-2.5 text-[10px] text-[#fce7f3] font-mono focus:outline-none focus:border-[#00d2ff]"></textarea>
+              <button onclick="applyCustomConfig()" class="w-full py-2 rounded-xl bg-gradient-to-r from-[#00d2ff] to-[#ff2d78] text-[#090414] font-black text-xs">
+                حفظ وإعادة الاتصال
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <button onclick="closeCloudModal()" class="w-full py-2 rounded-xl bg-[#231142] hover:bg-[#32175e] text-[#fce7f3] font-bold text-xs transition border border-[#4d1f85]">
+          إغلاق
+        </button>
+      </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-[#170b2c] border border-[#ff2d78]/60 text-[#fce7f3] text-xs font-bold shadow-[0_0_15px_rgba(255,45,120,0.4)] opacity-0 -translate-y-4 pointer-events-none transition-all duration-200 flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-[#00d2ff] shadow-[0_0_8px_#00d2ff]"></span>
+      <span id="toast-text">تم الحفظ</span>
+    </div>
+
+  </div>
+
+  <script>
+    const currentDateObj = new Date();
+
+    // Application In-Memory State
+    const appState = {
+      currentYear: currentDateObj.getFullYear(),
+      currentMonth: currentDateObj.getMonth(),
+      selectedDateKey: null,
+
+      // Habit data: date string 'YYYY-MM-DD' -> count (0, 1, 2, 3, 4, or 'unknown')
+      habitRecords: {},
+
+      // Weight data
+      startWeight: 105.0,
+      currentWeight: 97.0,
+      targetWeight: 80.0,
+      
+      // Weekly Tuesday logs
+      weeklyLogs: [
+        { 
+          date: currentDateObj.toISOString().split('T')[0], 
+          weight: 97.0, 
+          note: 'بداية المتابعة (وزن اليوم)' 
+        }
+      ]
+    };
+
+    const arabicMonths = [
+      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+    ];
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-text').textContent = msg;
+      toast.classList.remove('opacity-0', '-translate-y-4', 'pointer-events-none');
+      toast.classList.add('opacity-100', 'translate-y-0');
+      setTimeout(() => {
+        toast.classList.remove('opacity-100', 'translate-y-0');
+        toast.classList.add('opacity-0', '-translate-y-4', 'pointer-events-none');
+      }, 2200);
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-view').forEach(t => t.classList.remove('active'));
+      const activeTab = document.getElementById(`view-${tabId}`);
+      if (activeTab) activeTab.classList.add('active');
+
+      const btnCal = document.getElementById('nav-btn-calendar');
+      const btnWeight = document.getElementById('nav-btn-weight');
+
+      if (tabId === 'calendar') {
+        btnCal.className = 'flex flex-col items-center gap-1 text-[#00d2ff] transition font-black';
+        btnWeight.className = 'flex flex-col items-center gap-1 text-[#d8b4fe] hover:text-[#fce7f3] transition font-bold';
+      } else {
+        btnWeight.className = 'flex flex-col items-center gap-1 text-[#ff4d94] transition font-black';
+        btnCal.className = 'flex flex-col items-center gap-1 text-[#d8b4fe] hover:text-[#fce7f3] transition font-bold';
+      }
+    }
+
+    function copyUserId() {
+      const userIdText = document.getElementById('modal-user-id').textContent;
+      if (!userIdText || userIdText === 'غير مسجل بعد') {
+        showToast('لم يتم إنشاء معرّف بعد');
+        return;
+      }
+      const dummy = document.createElement('textarea');
+      dummy.value = userIdText;
+      document.body.appendChild(dummy);
+      dummy.select();
+      document.execCommand('copy');
+      document.body.removeChild(dummy);
+      showToast('تم نسخ المعرّف بنجاح');
+    }
+
+    function openCloudModal() {
+      document.getElementById('modal-cloud').classList.remove('hidden');
+    }
+    function closeCloudModal() {
+      document.getElementById('modal-cloud').classList.add('hidden');
+    }
+    function toggleConfigArea() {
+      const box = document.getElementById('custom-config-box');
+      box.classList.toggle('hidden');
+    }
+  </script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { 
+      getAuth, 
+      signInAnonymously, 
+      signInWithCustomToken 
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { 
+      getFirestore, 
+      doc, 
+      setDoc, 
+      onSnapshot 
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Application ID handling
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'tracker-personal-v1';
+    
+    // Global Firebase instances
+    let firebaseApp = null;
+    let auth = null;
+    let db = null;
+    let currentUserId = null;
+    let unsubscribeSnapshot = null;
+    let isSavingToCloud = false;
+
+    // UI Status Helpers
+    function updateSyncStatusUI(status, message, userId = null) {
+      const statusIcon = document.getElementById('status-icon');
+      const statusText = document.getElementById('status-text');
+      const indicatorDot = document.getElementById('cloud-indicator-dot');
+      const modalBadge = document.getElementById('modal-sync-badge');
+      const modalUserId = document.getElementById('modal-user-id');
+      const storagePath = document.getElementById('modal-storage-path');
+
+      if (statusText) statusText.textContent = message;
+
+      if (userId && modalUserId) {
+        modalUserId.textContent = userId;
+        currentUserId = userId;
+        if (storagePath) {
+          storagePath.textContent = `artifacts/${appId}/users/${userId}/tracker_data/main`;
+        }
+      }
+
+      if (status === 'connected') {
+        if (statusIcon) statusIcon.className = 'w-1.5 h-1.5 rounded-full bg-[#00d2ff] shadow-[0_0_8px_#00d2ff]';
+        if (indicatorDot) indicatorDot.className = 'w-2 h-2 rounded-full bg-[#00d2ff] shadow-[0_0_8px_#00d2ff]';
+        if (modalBadge) {
+          modalBadge.className = 'px-2 py-0.5 rounded-lg bg-[#00d2ff]/20 text-[#00d2ff] font-extrabold text-[11px] border border-[#00d2ff]/40';
+          modalBadge.textContent = 'متصل بالسحابة ✓';
+        }
+      } else if (status === 'connecting') {
+        if (statusIcon) statusIcon.className = 'w-1.5 h-1.5 rounded-full bg-amber-400 live-pulse';
+        if (indicatorDot) indicatorDot.className = 'w-2 h-2 rounded-full bg-amber-400 live-pulse';
+        if (modalBadge) {
+          modalBadge.className = 'px-2 py-0.5 rounded-lg bg-amber-400/20 text-amber-300 font-extrabold text-[11px]';
+          modalBadge.textContent = 'جاري الاتصال...';
+        }
+      } else {
+        if (statusIcon) statusIcon.className = 'w-1.5 h-1.5 rounded-full bg-[#ff2d78]';
+        if (indicatorDot) indicatorDot.className = 'w-2 h-2 rounded-full bg-[#ff2d78]';
+        if (modalBadge) {
+          modalBadge.className = 'px-2 py-0.5 rounded-lg bg-[#ff2d78]/20 text-[#ff4d94] font-extrabold text-[11px] border border-[#ff2d78]/40';
+          modalBadge.textContent = 'وضع محلي (غير متصل بالسحابة)';
+        }
+      }
+    }
+
+    async function initFirebaseService(customConfig = null) {
+      updateSyncStatusUI('connecting', 'جاري بدء الاتصال بقاعدة بيانات فايربيز...');
+
+      let finalConfig = customConfig;
+      if (!finalConfig && typeof __firebase_config !== 'undefined' && __firebase_config) {
+        try {
+          finalConfig = JSON.parse(__firebase_config);
+        } catch (e) {
+          console.warn("Failed to parse default config string:", e);
+        }
+      }
+
+      if (!finalConfig || !finalConfig.apiKey) {
+        updateSyncStatusUI('offline', 'جاهز محلياً (يمكنك لصق مفاتيح فايربيز في التفاصيل)');
+        return;
+      }
+
+      try {
+        firebaseApp = initializeApp(finalConfig);
+        auth = getAuth(firebaseApp);
+        db = getFirestore(firebaseApp);
+
+        // Strict Rule 3: Auth Before Queries
+        let userCred = null;
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          userCred = await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          userCred = await signInAnonymously(auth);
+        }
+
+        const user = userCred.user;
+        if (!user) {
+          updateSyncStatusUI('offline', 'تعذر استكمال المصادقة');
+          return;
+        }
+
+        const uid = user.uid;
+        updateSyncStatusUI('connected', 'متزامن سحابياً مع فايربيز لحظياً', uid);
+        
+        // Listen strictly to user path: /artifacts/{appId}/users/{userId}/{collectionName}
+        listenToUserRemoteData(uid);
+
+      } catch (err) {
+        console.error("Firebase init failed:", err);
+        updateSyncStatusUI('offline', 'خطأ أثناء الاتصال: ' + (err.message || 'فشل الاتصال'));
+      }
+    }
+
+    function listenToUserRemoteData(uid) {
+      if (!db || !uid) return;
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+      }
+
+      // Rule 1: STRICT PATH: /artifacts/{appId}/users/{userId}/{collectionName}/{docId}
+      const userDocRef = doc(db, 'artifacts', appId, 'users', uid, 'tracker_data', 'main');
+
+      unsubscribeSnapshot = onSnapshot(userDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const cloudData = docSnap.data();
+
+          if (cloudData.habitRecords && typeof cloudData.habitRecords === 'object') {
+            appState.habitRecords = { ...appState.habitRecords, ...cloudData.habitRecords };
+          }
+          if (typeof cloudData.currentWeight === 'number') {
+            appState.currentWeight = cloudData.currentWeight;
+          }
+          if (typeof cloudData.startWeight === 'number') {
+            appState.startWeight = cloudData.startWeight;
+          }
+          if (typeof cloudData.targetWeight === 'number') {
+            appState.targetWeight = cloudData.targetWeight;
+          }
+          if (Array.isArray(cloudData.weeklyLogs) && cloudData.weeklyLogs.length > 0) {
+            appState.weeklyLogs = cloudData.weeklyLogs;
+          }
+
+          // Re-render UI with received cloud state
+          renderCalendar();
+          updateWeightUI();
+        } else {
+          // Document does not exist yet: commit initial default state to cloud
+          pushStateToCloud();
+        }
+      }, (error) => {
+        console.error("Snapshot error:", error);
+        updateSyncStatusUI('offline', 'خطأ في التزامن: ' + error.message);
+      });
+    }
+
+    async function pushStateToCloud() {
+      if (!db || !currentUserId || isSavingToCloud) return;
+
+      try {
+        isSavingToCloud = true;
+        const userDocRef = doc(db, 'artifacts', appId, 'users', currentUserId, 'tracker_data', 'main');
+
+        await setDoc(userDocRef, {
+          habitRecords: appState.habitRecords,
+          currentWeight: appState.currentWeight,
+          startWeight: appState.startWeight,
+          targetWeight: appState.targetWeight,
+          weeklyLogs: appState.weeklyLogs,
+          lastUpdated: new Date().toISOString()
+        }, { merge: true });
+
+        isSavingToCloud = false;
+      } catch (e) {
+        isSavingToCloud = false;
+        console.error("Cloud push failed:", e);
+        showToast('تعذر الحفظ في السحابة حالياً');
+      }
+    }
+
+    // Expose push function globally for UI actions
+    window.syncStateToCloud = pushStateToCloud;
+
+    // Custom configuration handler
+    window.applyCustomConfig = function() {
+      const textarea = document.getElementById('custom-firebase-json');
+      const val = textarea.value.trim();
+      if (!val) {
+        showToast('يرجى لصق الـ JSON الخاص بفايربيز');
+        return;
+      }
+      try {
+        const parsed = JSON.parse(val);
+        initFirebaseService(parsed);
+        closeCloudModal();
+        showToast('جاري الاتصال بإعدادات فايربيز المخصصة...');
+      } catch (err) {
+        showToast('تنسيق JSON غير صالح');
+      }
+    };
+
+    // Auto-initialize Firebase on load
+    initFirebaseService();
+  </script>
+
+  <script>
+    function changeMonth(offset) {
+      appState.currentMonth += offset;
+      if (appState.currentMonth < 0) {
+        appState.currentMonth = 11;
+        appState.currentYear -= 1;
+      } else if (appState.currentMonth > 11) {
+        appState.currentMonth = 0;
+        appState.currentYear += 1;
+      }
+      renderCalendar();
+    }
+
+    function renderCalendar() {
+      const grid = document.getElementById('calendar-days-grid');
+      const monthTitle = document.getElementById('calendar-month-name');
+      if (!grid || !monthTitle) return;
+      grid.innerHTML = '';
+
+      const y = appState.currentYear;
+      const m = appState.currentMonth;
+      monthTitle.textContent = `${arabicMonths[m]} ${y}`;
+
+      const firstDay = new Date(y, m, 1);
+      const totalDays = new Date(y, m + 1, 0).getDate();
+
+      // Convert day of week so Saturday is 0 (Arabic week start)
+      const startDayIndex = (firstDay.getDay() + 1) % 7;
+
+      for (let i = 0; i < startDayIndex; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'aspect-square rounded-xl bg-[#090414]/50 opacity-20 pointer-events-none';
+        grid.appendChild(emptyCell);
+      }
+
+      let zeroCount = 0;
+      let unknownCount = 0;
+      let totalOccurrences = 0;
+
+      for (let day = 1; day <= totalDays; day++) {
+        const dateKey = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const count = appState.habitRecords[dateKey];
+
+        const cell = document.createElement('div');
+        cell.className = 'calendar-cell relative border';
+
+        if (count === undefined) {
+          // Not recorded yet
+          cell.classList.add('bg-[#140826]', 'border-[#361559]', 'text-[#d8b4fe]');
+          cell.innerHTML = `
+            <span class="text-xs font-bold">${day}</span>
+            <span class="text-[9px] text-[#6b21a8]">-</span>
+          `;
+        } else if (count === 'unknown') {
+          // Unspecified
+          unknownCount++;
+          cell.classList.add('bg-[#231142]', 'border-[#6b21a8]', 'border-dashed', 'text-[#e9d5ff]');
+          cell.innerHTML = `
+            <span class="text-xs font-extrabold">${day}</span>
+            <span class="text-[10px] font-bold text-[#d8b4fe]">؟</span>
+          `;
+        } else {
+          totalOccurrences += count;
+          if (count === 0) {
+            zeroCount++;
+            cell.classList.add('bg-[#00d2ff]/15', 'border-[#00d2ff]/70', 'text-[#00d2ff]');
+            cell.innerHTML = `
+              <span class="text-xs font-extrabold">${day}</span>
+              <span class="text-[10px] font-black text-[#00d2ff]">0</span>
+            `;
+          } else if (count === 1) {
+            cell.classList.add('bg-emerald-950/60', 'border-emerald-500/60', 'text-emerald-300');
+            cell.innerHTML = `
+              <span class="text-xs font-extrabold">${day}</span>
+              <span class="text-[10px] font-bold text-emerald-300">1</span>
+            `;
+          } else if (count === 2) {
+            cell.classList.add('bg-amber-950/60', 'border-amber-500/60', 'text-amber-300');
+            cell.innerHTML = `
+              <span class="text-xs font-extrabold">${day}</span>
+              <span class="text-[10px] font-bold text-amber-300">2</span>
+            `;
+          } else if (count === 3) {
+            cell.classList.add('bg-[#ff2d78]/25', 'border-[#ff2d78]/70', 'text-[#ff4d94]');
+            cell.innerHTML = `
+              <span class="text-xs font-extrabold">${day}</span>
+              <span class="text-[10px] font-black text-[#ff4d94]">3</span>
+            `;
+          } else {
+            cell.classList.add('bg-purple-950/70', 'border-purple-500/70', 'text-purple-200');
+            cell.innerHTML = `
+              <span class="text-xs font-extrabold">${day}</span>
+              <span class="text-[10px] font-bold text-purple-200">4+</span>
+            `;
+          }
+        }
+
+        cell.onclick = () => openPicker(dateKey, day);
+        grid.appendChild(cell);
+      }
+
+      document.getElementById('stat-clean-days').textContent = zeroCount;
+      document.getElementById('stat-unknown-days').textContent = unknownCount;
+      document.getElementById('month-total-events').textContent = `إجمالي المرات: ${totalOccurrences}`;
+    }
+
+    function openPicker(dateKey, dayNum) {
+      appState.selectedDateKey = dateKey;
+      document.getElementById('picker-date-title').textContent = `يوم ${dayNum} ${arabicMonths[appState.currentMonth]}`;
+      document.getElementById('modal-day-picker').classList.remove('hidden');
+    }
+
+    function closePickerModal() {
+      document.getElementById('modal-day-picker').classList.add('hidden');
+    }
+
+    function setDayCount(count) {
+      if (appState.selectedDateKey) {
+        appState.habitRecords[appState.selectedDateKey] = count;
+        renderCalendar();
+        closePickerModal();
+        showToast('تم التسجيل وحفظه سحابياً ✓');
+
+        // Sync to Firestore
+        if (window.syncStateToCloud) {
+          window.syncStateToCloud();
+        }
+      }
+    }
+
+    function renderMilestones() {
+      const current = appState.currentWeight;
+
+      const steps = [
+        { id: 1, from: 105, to: 100, label: 'المرحلة 1: من 105 إلى 100 كجم' },
+        { id: 2, from: 100, to: 95, label: 'المرحلة 2: من 100 إلى 95 كجم' },
+        { id: 3, from: 95, to: 90, label: 'المرحلة 3: من 95 إلى 90 كجم' },
+        { id: 4, from: 90, to: 85, label: 'المرحلة 4: من 90 إلى 85 كجم' },
+        { id: 5, from: 85, to: 80, label: 'المرحلة 5: من 85 إلى 80 كجم (الهدف)' }
+      ];
+
+      const ladder = document.getElementById('milestones-ladder');
+      if (!ladder) return;
+
+      ladder.innerHTML = steps.map(step => {
+        let isDone = current <= step.to;
+        let isCurrent = current < step.from && current > step.to;
+
+        let statusBadge = '';
+        let stepProgressPct = 0;
+        let noteText = '';
+
+        if (isDone) {
+          stepProgressPct = 100;
+          statusBadge = '<span class="text-[10px] font-black text-[#00d2ff] bg-[#00d2ff]/20 px-2 py-0.5 rounded-md border border-[#00d2ff]/40">مكتملة ✓</span>';
+          noteText = 'تم الوصول لـ ' + step.to + ' كجم';
+        } else if (isCurrent) {
+          const lostInStep = step.from - current;
+          stepProgressPct = Math.round((lostInStep / 5) * 100);
+          const remainingInStep = (current - step.to).toFixed(1);
+          statusBadge = '<span class="text-[10px] font-black text-[#ff4d94] bg-[#ff2d78]/20 px-2 py-0.5 rounded-md border border-[#ff2d78]/50 shadow-[0_0_8px_rgba(255,45,120,0.3)]">أنتِ هنا الآن</span>';
+          noteText = `متبقي ${remainingInStep} كجم للوصول للمحطة التالية`;
+        } else {
+          stepProgressPct = 0;
+          statusBadge = '<span class="text-[10px] font-bold text-[#d8b4fe] bg-[#090414] px-2 py-0.5 rounded-md border border-[#3b1763]">قادمة</span>';
+          noteText = `تبدأ عند ${step.from} كجم`;
+        }
+
+        return `
+          <div class="p-3 rounded-xl border ${isCurrent ? 'bg-[#ff2d78]/15 border-[#ff2d78]/50' : isDone ? 'bg-[#00d2ff]/15 border-[#00d2ff]/40' : 'bg-[#150a29] border-[#3b1763]'}">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-bold ${isCurrent ? 'text-[#ff4d94]' : isDone ? 'text-[#00d2ff]' : 'text-[#d8b4fe]'}">${step.label}</span>
+              ${statusBadge}
+            </div>
+            
+            <div class="w-full h-1.5 bg-[#090414] rounded-full overflow-hidden my-1.5">
+              <div class="h-full ${isDone ? 'bg-[#00d2ff]' : 'bg-gradient-to-r from-[#00d2ff] to-[#ff2d78]'} rounded-full transition-all duration-500" style="width: ${stepProgressPct}%"></div>
+            </div>
+
+            <div class="text-[10px] text-[#d8b4fe] flex justify-between font-medium">
+              <span>${noteText}</span>
+              <span class="font-bold ${isDone ? 'text-[#00d2ff]' : 'text-[#ff4d94]'}">${stepProgressPct}%</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateWeightUI() {
+      const lost = (appState.startWeight - appState.currentWeight).toFixed(1);
+      const totalGoal = appState.startWeight - appState.targetWeight;
+      const currentLost = appState.startWeight - appState.currentWeight;
+      const overallPct = Math.min(100, Math.max(0, Math.round((currentLost / totalGoal) * 100)));
+      const remainingTotal = (appState.currentWeight - appState.targetWeight).toFixed(1);
+
+      document.getElementById('quick-current-weight').textContent = appState.currentWeight.toFixed(1);
+      document.getElementById('display-current-weight').textContent = appState.currentWeight.toFixed(1);
+      document.getElementById('total-loss-badge').textContent = `خسيتي ${lost} كجم`;
+      document.getElementById('overall-progress-text').textContent = `${overallPct}%`;
+      document.getElementById('overall-progress-bar').style.width = `${overallPct}%`;
+      document.getElementById('remaining-kg-text').textContent = `باقي: ${remainingTotal} كجم للوصول لـ 80`;
+
+      renderMilestones();
+      renderWeeklyLogs();
+    }
+
+    function renderWeeklyLogs() {
+      const container = document.getElementById('weekly-logs-container');
+      if (!container) return;
+      container.innerHTML = appState.weeklyLogs.slice().reverse().map(log => `
+        <div class="flex items-center justify-between p-2.5 rounded-xl bg-[#231142] border border-[#4d1f85] text-xs">
+          <div>
+            <span class="font-black text-[#00d2ff] text-sm">${Number(log.weight).toFixed(1)} كجم</span>
+            <span class="text-[11px] text-[#ff80ab] mr-2 font-bold">${log.note || 'ميزان مسجل'}</span>
+          </div>
+          <span class="text-[11px] font-mono text-[#d8b4fe]">${log.date}</span>
+        </div>
+      `).join('');
+    }
+
+    function saveTuesdayWeight() {
+      const input = document.getElementById('input-tuesday-weight');
+      const val = parseFloat(input.value);
+
+      if (!val || val < 50 || val > 150) {
+        showToast('يرجى إدخال وزن صحيح بين 50 و 150');
+        return;
+      }
+
+      appState.currentWeight = val;
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0];
+
+      appState.weeklyLogs.push({
+        date: dateStr,
+        weight: val,
+        note: 'ميزان ثلاثاء مسجل'
+      });
+
+      input.value = '';
+      updateWeightUI();
+      showToast('تم تسجيل وزن الثلاثاء والمزامنة ✓');
+
+      // Sync to Firestore
+      if (window.syncStateToCloud) {
+        window.syncStateToCloud();
+      }
+    }
+
+    window.onload = function() {
+      const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      document.getElementById('header-date-label').textContent = new Date().toLocaleDateString('ar-EG', dateOptions);
+
+      renderCalendar();
+      updateWeightUI();
+
+      if (window.lucide) {
+        lucide.createIcons();
+      }
+    };
+  </script>
+</body>
+</html>
